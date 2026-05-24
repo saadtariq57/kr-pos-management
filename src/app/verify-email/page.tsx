@@ -1,0 +1,13 @@
+import * as React from "react";
+
+import { VerifyEmailClient } from "./VerifyEmailClient";
+
+export const dynamic = "force-dynamic";
+
+export default function VerifyEmailPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <VerifyEmailClient />
+    </React.Suspense>
+  );
+}
