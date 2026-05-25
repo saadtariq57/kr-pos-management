@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: "kr-next-pos",
-      script: "node_modules/next/dist/bin/next",
-      args: "start",
+      script: "npm",
+      args: "run start",
       cwd: "./",
       env: {
         NODE_ENV: "production",
@@ -11,7 +11,8 @@ module.exports = {
     },
     {
       name: "kr-websocket",
-      script: "websocket/server.js",
+      script: "npm",
+      args: "run start:ws",
       cwd: "./",
       env: {
         NODE_ENV: "production",
