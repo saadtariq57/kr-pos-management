@@ -6,7 +6,7 @@
     "dev": "dotenv -e .env -- next dev --turbopack",
     "dev:ws": "dotenv -e .env -- nodemon websocket/server.js",
     "build": "next build",
-    "start": "dotenv -e .env -- next start -p $PORT",
+    "start": "dotenv -e .env -- next start",
     "start:ws": "dotenv -e .env -- node websocket/server.js",
     "lint": "eslint"
   },

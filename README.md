@@ -11,31 +11,38 @@ A calm, high-fidelity point-of-sale and kitchen real-time management workspace f
 - **MongoDB** (Local Compass or Atlas URI)
 
 ### 2. Environment Variables Configuration
-Create a `.env` or `.env.local` file in the root directory and copy the contents from `.env.example`. Customize the values:
+Create a `.env` file in the root directory and copy the contents from `.env.example`. Customize the values:
 ```env
 MONGODB_URI=mongodb://127.0.0.1:27017/kr-pos
 JWT_SECRET=replace-with-a-long-random-string
-APP_URL=http://localhost:3000
+
+# Server ports — change these to run on different ports
+PORT=3000
 WEBSOCKET_PORT=3002
+
+APP_URL=http://localhost:3000
+NEXT_PUBLIC_WEBSOCKET_URL=http://localhost:3002
 
 # SendGrid & Cloudinary Credentials (as needed)
 ...
 ```
 
+> **How ports work:** All npm scripts use [`dotenv-cli`](https://www.npmjs.com/package/dotenv-cli) to load `.env` before starting any server. This means `PORT` and `WEBSOCKET_PORT` are injected into the process environment *before* the server binds — so changing a port is as simple as editing `.env`. No changes to `package.json` or any code are needed.
+
 ### 3. Run Development Servers
-Open two terminal windows or run concurrently:
+Open two terminal windows:
 
 #### **Next.js Web POS & Management App**
-Starts the local development server:
 ```bash
 npm run dev
 ```
+Starts on the port defined by `PORT` in `.env` (default: `3000`).
 
 #### **WebSocket Notification Server**
-Starts the Socket.io WebSocket server on port `3002` (via nodemon for hot-reloads):
 ```bash
 npm run dev:ws
 ```
+Starts on the port defined by `WEBSOCKET_PORT` in `.env` (default: `3002`). Uses nodemon for hot-reloads.
 
 ---
 
@@ -44,12 +51,13 @@ npm run dev:ws
 Both the Next.js POS app and the Socket.io WebSocket notification server are fully ready for a robust production environment.
 
 ### 1. Configure Production Environment Variables
-Set the following environment variables on your production hosting environments (Vercel, Render, Heroku, AWS, or PM2 VPS):
+Set the following in your production `.env` file (or your hosting provider's env config):
+- `PORT`: Port for the Next.js server (defaults to `3000`).
+- `WEBSOCKET_PORT`: Port for the WebSocket server (defaults to `3002`).
 - `MONGODB_URI`: Point to your production MongoDB database cluster.
 - `JWT_SECRET`: A secure, cryptographically random secret string.
 - `APP_URL`: Your deployed website URL (e.g. `https://kr-restaurant.example.com`).
-- `WEBSOCKET_PORT`: Port for the WebSocket server (defaults to `3002`).
-- `NEXT_PUBLIC_WEBSOCKET_URL`: Public absolute URL of your deployed WebSocket server (e.g., `https://websocket-kr.example.com` or `wss://kr-restaurant.example.com`). This ensures the client connects dynamically without local host hardcoding.
+- `NEXT_PUBLIC_WEBSOCKET_URL`: Public absolute URL of your deployed WebSocket server (e.g., `https://kr-restaurant.example.com:3002`).
 
 ### 2. Next.js POS Server
 Build the optimized production bundle and start the server:
@@ -57,14 +65,13 @@ Build the optimized production bundle and start the server:
 # 1. Compile and build production assets
 npm run build
 
-# 2. Start the Next.js production server
+# 2. Start the Next.js production server (port from PORT in .env)
 npm run start
 ```
 
 ### 3. WebSocket Notification Server
-Start the standalone Node.js Socket.io server directly in a secure, non-development environment:
 ```bash
-# Start the WebSocket server using standard Node.js
+# Start the WebSocket server (port from WEBSOCKET_PORT in .env)
 npm run start:ws
 ```
 
