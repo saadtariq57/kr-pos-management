@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "dev:ws": "nodemon websocket/server.js",
+    "dev": "dotenv -e .env -- next dev --turbopack",
+    "dev:ws": "dotenv -e .env -- nodemon websocket/server.js",
     "build": "next build",
-    "start": "next start",
-    "start:ws": "node websocket/server.js",
+    "start": "dotenv -e .env -- next start -p $PORT",
+    "start:ws": "dotenv -e .env -- node websocket/server.js",
     "lint": "eslint"
   },
   "dependencies": {
@@ -61,6 +61,7 @@
     "@types/ws": "^8.18.1",
     "babel-plugin-react-compiler": "1.0.0",
     "concurrently": "^9.2.1",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "nodemon": "^3.1.14",
