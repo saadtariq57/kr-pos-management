@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# KR Restaurant - POS & Management Workspace
 
-## Getting Started
+A calm, high-fidelity point-of-sale and kitchen real-time management workspace for KR Restaurant. Built with Next.js, MongoDB, and real-time Socket.io WebSockets.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Development Setup Guide
+
+### 1. Prerequisite Installations
+- **Node.js** (v18.x or higher recommended)
+- **MongoDB** (Local Compass or Atlas URI)
+
+### 2. Environment Variables Configuration
+Create a `.env` or `.env.local` file in the root directory and copy the contents from `.env.example`. Customize the values:
+```env
+MONGODB_URI=mongodb://127.0.0.1:27017/kr-pos
+JWT_SECRET=replace-with-a-long-random-string
+APP_URL=http://localhost:3000
+WEBSOCKET_PORT=3002
+
+# SendGrid & Cloudinary Credentials (as needed)
+...
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Run Development Servers
+Open two terminal windows or run concurrently:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+#### **Next.js Web POS & Management App**
+Starts the local development server:
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+#### **WebSocket Notification Server**
+Starts the Socket.io WebSocket server on port `3002` (via nodemon for hot-reloads):
+```bash
+npm run dev:ws
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Production Setup Guide
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Both the Next.js POS app and the Socket.io WebSocket notification server are fully ready for a robust production environment.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 1. Configure Production Environment Variables
+Set the following environment variables on your production hosting environments (Vercel, Render, Heroku, AWS, or PM2 VPS):
+- `MONGODB_URI`: Point to your production MongoDB database cluster.
+- `JWT_SECRET`: A secure, cryptographically random secret string.
+- `APP_URL`: Your deployed website URL (e.g. `https://kr-restaurant.example.com`).
+- `WEBSOCKET_PORT`: Port for the WebSocket server (defaults to `3002`).
+- `NEXT_PUBLIC_WEBSOCKET_URL`: Public absolute URL of your deployed WebSocket server (e.g., `https://websocket-kr.example.com` or `wss://kr-restaurant.example.com`). This ensures the client connects dynamically without local host hardcoding.
 
-## Deploy on Vercel
+### 2. Next.js POS Server
+Build the optimized production bundle and start the server:
+```bash
+# 1. Compile and build production assets
+npm run build
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# 2. Start the Next.js production server
+npm run start
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 3. WebSocket Notification Server
+Start the standalone Node.js Socket.io server directly in a secure, non-development environment:
+```bash
+# Start the WebSocket server using standard Node.js
+npm run start:ws
+```
+
+### 4. Process Manager (Recommended for VPS Setup)
+If deploying on a VPS (like Ubuntu via DigitalOcean/AWS), use **PM2** with our industry-standard ecosystem configuration file to manage both processes and keep them running continuously:
+
+```bash
+# 1. Install PM2 globally
+npm install -g pm2
+
+# 2. Start both services together (from your project directory)
+pm2 start ecosystem.config.cjs
+
+# 3. Save PM2 process list and configure startup
+pm2 save
+pm2 startup
+```
+
+Once started, PM2 registers the absolute paths and you can run status, logs, or management commands **from any directory** on your server:
+```bash
+pm2 status          # View status of both apps
+pm2 logs            # Stream real-time logs
+pm2 restart all     # Restart both services
+pm2 stop all        # Stop both services
+```

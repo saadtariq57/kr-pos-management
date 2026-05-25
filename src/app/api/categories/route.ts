@@ -26,8 +26,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await getSessionUserApproved();
-  if (!session || !canManageInventory(session.role)) {
-    return jsonError("Forbidden", 403);
+  if (!session || session.role !== "admin") {
+    return jsonError("Only admins can add categories to the menu", 403);
   }
 
   await connectDB();

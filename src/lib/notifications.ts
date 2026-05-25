@@ -53,7 +53,7 @@ function toObjectIdOrNull(
  */
 export async function notify(input: NotifyInput): Promise<void> {
   try {
-    await Notification.create({
+    const doc = await Notification.create({
       type: input.type,
       title: input.title,
       body: input.body ?? "",
@@ -63,6 +63,9 @@ export async function notify(input: NotifyInput): Promise<void> {
       recipient_user_id: toObjectIdOrNull(input.recipient_user_id ?? null),
       payload: input.payload ?? {},
     });
+
+    // Fire-and-forget real-time WebSocket broadcast
+    void triggerWebSocketNotification(doc);
   } catch (e) {
     console.warn("[notify] failed", e);
   }
@@ -75,7 +78,7 @@ export async function notify(input: NotifyInput): Promise<void> {
 export async function notifyMany(inputs: NotifyInput[]): Promise<void> {
   if (!inputs.length) return;
   try {
-    await Notification.insertMany(
+    const docs = await Notification.insertMany(
       inputs.map((i) => ({
         type: i.type,
         title: i.title,
@@ -88,7 +91,46 @@ export async function notifyMany(inputs: NotifyInput[]): Promise<void> {
       })),
       { ordered: false },
     );
+
+    // Fire-and-forget real-time WebSocket broadcast
+    void triggerWebSocketNotification(docs);
   } catch (e) {
     console.warn("[notifyMany] failed", e);
   }
 }
+
+/**
+ * Dispatch notifications via HTTP POST to the local WebSocket server
+ * running on port 3002.
+ */
+async function triggerWebSocketNotification(data: unknown | unknown[]): Promise<void> {
+  try {
+    const payload = Array.isArray(data) ? data : [data];
+    const items = payload.map((doc: any) => ({
+      _id: String(doc._id),
+      type: doc.type,
+      title: doc.title,
+      body: doc.body,
+      order_id: doc.order_id ? String(doc.order_id) : null,
+      branch_id: doc.branch_id ? String(doc.branch_id) : null,
+      recipient_role: doc.recipient_role,
+      recipient_user_id: doc.recipient_user_id ? String(doc.recipient_user_id) : null,
+      payload: doc.payload ?? {},
+      created_at: doc.created_at || doc.createdAt || new Date().toISOString(),
+    }));
+
+    if (!items.length) return;
+
+    const wsPort = process.env.WEBSOCKET_PORT || "3002";
+    await fetch(`http://localhost:${wsPort}/api/notify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ items }),
+    });
+  } catch (err) {
+    console.warn("[triggerWebSocketNotification] failed to contact websocket server", err);
+  }
+}
+

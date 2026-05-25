@@ -17,7 +17,7 @@ const ORDER_TYPES = ["dine-in", "takeaway"] as const;
 export async function POST(req: NextRequest) {
   const session = await getSessionUserApproved();
   if (!session || !canPlaceOrders(session.role)) {
-    return jsonError("Only cashiers and admins can place orders", 403);
+    return jsonError("Only cashiers can place orders", 403);
   }
 
   await connectDB();

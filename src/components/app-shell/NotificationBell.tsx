@@ -3,6 +3,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { Bell, CheckCheck, Inbox } from "lucide-react";
+import { io } from "socket.io-client";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
@@ -31,8 +32,6 @@ type FeedResponse = {
   unread_count: number;
 };
 
-const POLL_MS = 5000;
-
 function formatRelative(iso: string): string {
   const now = Date.now();
   const t = new Date(iso).getTime();
@@ -57,8 +56,9 @@ function formatRelative(iso: string): string {
  * notifications and lets the user mark them read individually or all at
  * once.
  *
- * We intentionally avoid websockets — polling is reliable, works on
- * serverless, and keeps the implementation simple for a project this size.
+ * We intentionally use websockets — we connect to a separate Node/Socket.io 
+ * server running on port 3002 to receive real-time notifications, avoiding
+ * constant DB/HTTP polling overhead.
  */
 export function NotificationBell() {
   const { user } = useAuth();
@@ -103,11 +103,51 @@ export function NotificationBell() {
     if (!user) return;
     setLoading(true);
     void reload(false).finally(() => setLoading(false));
-    const id = window.setInterval(() => {
-      void reload(true);
-    }, POLL_MS);
-    return () => window.clearInterval(id);
-  }, [user, reload]);
+
+    // Connect to WebSocket notification server
+    const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "http://localhost:3002";
+    const socket = io(wsUrl, {
+      query: {
+        userId: user.id,
+        role: user.role,
+        branchId: user.branch?.id || "",
+      },
+    });
+
+    socket.on("connect", () => {
+      console.log("[NotificationBell] Connected to WebSocket notification server");
+    });
+
+    socket.on("notification", (n: NotificationRow) => {
+      // Append the new notification to the feed
+      setFeed((prev) => {
+        if (!prev) return { items: [n], unread_count: 1 };
+        if (prev.items.some((item) => item._id === n._id)) return prev;
+        return {
+          items: [n, ...prev.items].slice(0, 20),
+          unread_count: prev.unread_count + 1,
+        };
+      });
+
+      // Prevent duplicate toast triggers
+      if (seenIds.current.has(n._id)) return;
+      seenIds.current.add(n._id);
+
+      toast({
+        title: n.title,
+        description: n.body || undefined,
+        tone: n.type === "order.cancelled" ? "danger" : "info",
+      });
+    });
+
+    socket.on("disconnect", () => {
+      console.log("[NotificationBell] Disconnected from WebSocket notification server");
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user, reload, toast]);
 
   async function markRead(id: string) {
     try {

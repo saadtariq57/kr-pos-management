@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api-client";
 import { useApiList } from "@/lib/useApiList";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 type CategoryRow = {
   _id: string;
@@ -43,6 +44,8 @@ type MenuItemRow = {
 };
 
 export default function MenuPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const categories = useApiList<CategoryRow>("/api/categories?limit=50");
   const items = useApiList<MenuItemRow>("/api/menu-items?limit=50");
   const { toast } = useToast();
@@ -199,40 +202,53 @@ export default function MenuPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardContent className="grid gap-5">
-            <div className="flex items-center justify-between gap-3">
+            {isAdmin ? (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[14px] font-semibold tracking-[-0.005em]">
+                      Categories
+                    </div>
+                    <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
+                      Group menu items for easier ordering.
+                    </p>
+                  </div>
+                  <Button size="sm" onClick={() => void createCategory()} disabled={creatingCat}>
+                    {creatingCat ? "Adding…" : "Add category"}
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="cat-name">Category name</Label>
+                    <Input
+                      id="cat-name"
+                      value={catName}
+                      onChange={(e) => setCatName(e.target.value)}
+                      placeholder="Burgers, Drinks…"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="cat-desc">Description</Label>
+                    <Input
+                      id="cat-desc"
+                      value={catDesc}
+                      onChange={(e) => setCatDesc(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
               <div>
                 <div className="text-[14px] font-semibold tracking-[-0.005em]">
                   Categories
                 </div>
-                <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
-                  Group menu items for easier ordering.
+                <p className="text-[12.5px] text-[hsl(var(--muted-foreground))] mt-1">
+                  List of active menu categories. Adding new categories is restricted to Admins.
                 </p>
               </div>
-              <Button size="sm" onClick={() => void createCategory()} disabled={creatingCat}>
-                {creatingCat ? "Adding…" : "Add category"}
-              </Button>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="cat-name">Category name</Label>
-                <Input
-                  id="cat-name"
-                  value={catName}
-                  onChange={(e) => setCatName(e.target.value)}
-                  placeholder="Burgers, Drinks…"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="cat-desc">Description</Label>
-                <Input
-                  id="cat-desc"
-                  value={catDesc}
-                  onChange={(e) => setCatDesc(e.target.value)}
-                  placeholder="Optional"
-                />
-              </div>
-            </div>
+            )}
 
             {categories.error ? (
               <div className="flex items-start gap-2 rounded-[10px] border border-[hsl(var(--destructive)/0.3)] bg-[hsl(var(--destructive)/0.08)] px-3 py-2.5 text-[12.5px] text-[hsl(var(--destructive))]">
@@ -289,111 +305,124 @@ export default function MenuPage() {
 
         <Card>
           <CardContent className="grid gap-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            {isAdmin ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[14px] font-semibold tracking-[-0.005em]">
+                      Menu items
+                    </div>
+                    <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
+                      Add, edit, or remove items.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {editingItemId ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={resetItemForm}
+                        disabled={creatingItem}
+                      >
+                        Cancel edit
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="sm"
+                      onClick={() => void saveMenuItem()}
+                      disabled={creatingItem}
+                    >
+                      {creatingItem
+                        ? "Saving…"
+                        : editingItemId
+                          ? "Save changes"
+                          : "Add item"}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="item-name">Item name</Label>
+                    <Input
+                      id="item-name"
+                      value={itemName}
+                      onChange={(e) => setItemName(e.target.value)}
+                      placeholder="Zinger Burger"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="item-price">Price</Label>
+                    <Input
+                      id="item-price"
+                      type="number"
+                      value={itemPrice}
+                      onChange={(e) => setItemPrice(e.target.value)}
+                      placeholder="500"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="item-category">Category</Label>
+                    <Select value={itemCategory} onValueChange={setItemCategory}>
+                      <SelectTrigger id="item-category">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoryItems.map((c) => (
+                          <SelectItem key={c._id} value={c._id}>
+                            {c.category_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="item-image">Product image</Label>
+                    <Input
+                      ref={itemImageInputRef}
+                      id="item-image"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(e) => setItemImageFile(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5 sm:col-span-2">
+                    <Label htmlFor="item-desc">Description</Label>
+                    <Input
+                      id="item-desc"
+                      value={itemDesc}
+                      onChange={(e) => setItemDesc(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="item-availability">Availability</Label>
+                    <Select
+                      value={itemAvailability}
+                      onValueChange={setItemAvailability}
+                    >
+                      <SelectTrigger id="item-availability">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="available">Available</SelectItem>
+                        <SelectItem value="unavailable">Unavailable</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            ) : (
               <div>
                 <div className="text-[14px] font-semibold tracking-[-0.005em]">
                   Menu items
                 </div>
-                <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
-                  Add, edit, or remove items.
+                <p className="text-[12.5px] text-[hsl(var(--muted-foreground))] mt-1">
+                  Catalog of active menu items. Adding new items or curating pricing is restricted to Admins.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {editingItemId ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={resetItemForm}
-                    disabled={creatingItem}
-                  >
-                    Cancel edit
-                  </Button>
-                ) : null}
-                <Button
-                  size="sm"
-                  onClick={() => void saveMenuItem()}
-                  disabled={creatingItem}
-                >
-                  {creatingItem
-                    ? "Saving…"
-                    : editingItemId
-                      ? "Save changes"
-                      : "Add item"}
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="item-name">Item name</Label>
-                <Input
-                  id="item-name"
-                  value={itemName}
-                  onChange={(e) => setItemName(e.target.value)}
-                  placeholder="Zinger Burger"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="item-price">Price</Label>
-                <Input
-                  id="item-price"
-                  type="number"
-                  value={itemPrice}
-                  onChange={(e) => setItemPrice(e.target.value)}
-                  placeholder="500"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="item-category">Category</Label>
-                <Select value={itemCategory} onValueChange={setItemCategory}>
-                  <SelectTrigger id="item-category">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryItems.map((c) => (
-                      <SelectItem key={c._id} value={c._id}>
-                        {c.category_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="item-image">Product image</Label>
-                <Input
-                  ref={itemImageInputRef}
-                  id="item-image"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(e) => setItemImageFile(e.target.files?.[0] ?? null)}
-                />
-              </div>
-              <div className="grid gap-1.5 sm:col-span-2">
-                <Label htmlFor="item-desc">Description</Label>
-                <Input
-                  id="item-desc"
-                  value={itemDesc}
-                  onChange={(e) => setItemDesc(e.target.value)}
-                  placeholder="Optional"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="item-availability">Availability</Label>
-                <Select
-                  value={itemAvailability}
-                  onValueChange={setItemAvailability}
-                >
-                  <SelectTrigger id="item-availability">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="available">Available</SelectItem>
-                    <SelectItem value="unavailable">Unavailable</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            )}
 
             {itemFormError ? (
               <div className="flex items-start gap-2 rounded-[10px] border border-[hsl(var(--destructive)/0.3)] bg-[hsl(var(--destructive)/0.08)] px-3 py-2.5 text-[12.5px] text-[hsl(var(--destructive))]">
@@ -418,13 +447,12 @@ export default function MenuPage() {
                 description="Add your first item using the form above."
               />
             ) : (
-              <SlimTable<MenuItemRow>
-                rowKey={(r) => r._id}
-                columns={[
+              (() => {
+                const tableColumns = [
                   {
                     key: "item",
                     header: "Item",
-                    cell: (r) => (
+                    cell: (r: MenuItemRow) => (
                       <div className="flex items-center gap-2.5">
                         {r.image_url ? (
                           <Image
@@ -444,15 +472,15 @@ export default function MenuPage() {
                   {
                     key: "price",
                     header: "Price",
-                    align: "right",
-                    cell: (r) => (
+                    align: "right" as const,
+                    cell: (r: MenuItemRow) => (
                       <span className="tabular-nums">{r.price}</span>
                     ),
                   },
                   {
                     key: "status",
                     header: "Status",
-                    cell: (r) =>
+                    cell: (r: MenuItemRow) =>
                       r.availability_status === "unavailable" ? (
                         <Badge variant="muted" size="sm">Unavailable</Badge>
                       ) : (
@@ -462,18 +490,21 @@ export default function MenuPage() {
                   {
                     key: "cat",
                     header: "Category",
-                    cell: (r) => (
+                    cell: (r: MenuItemRow) => (
                       <span className="text-[hsl(var(--muted-foreground))]">
                         {categoryItems.find((c) => c._id === r.category_id)
                           ?.category_name ?? "—"}
                       </span>
                     ),
                   },
-                  {
+                ];
+
+                if (isAdmin) {
+                  tableColumns.push({
                     key: "actions",
                     header: "",
-                    align: "right",
-                    cell: (r) => (
+                    align: "right" as const,
+                    cell: (r: MenuItemRow) => (
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
@@ -492,10 +523,17 @@ export default function MenuPage() {
                         </Button>
                       </div>
                     ),
-                  },
-                ]}
-                rows={items.data?.items ?? []}
-              />
+                  });
+                }
+
+                return (
+                  <SlimTable<MenuItemRow>
+                    rowKey={(r) => r._id}
+                    columns={tableColumns}
+                    rows={items.data?.items ?? []}
+                  />
+                );
+              })()
             )}
           </CardContent>
         </Card>

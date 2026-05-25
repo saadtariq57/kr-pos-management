@@ -119,6 +119,7 @@ export async function GET(req: NextRequest) {
       user_id: String(u._id),
       name: u.name,
       email: u.email,
+      phone: hr?.phone || u.phone || "",
       role: u.role,
       is_active: u.is_active !== false,
       last_login: u.last_login ?? null,

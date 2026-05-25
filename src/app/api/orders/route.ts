@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const authUser = await getSessionUserApproved();
   if (!authUser || !canPlaceOrders(authUser.role)) {
-    return jsonError("Only cashiers and admins can create orders", 403);
+    return jsonError("Only cashiers can create orders", 403);
   }
 
   await connectDB();

@@ -18,7 +18,17 @@ const PAYMENT_METHODS = ["cash", "card", "online"] as const;
 const RESERVATION_STATUSES = ["pending", "confirmed", "cancelled"] as const;
 const EMPLOYMENT_STATUSES = ["active", "resigned", "terminated"] as const;
 const ATTENDANCE_STATUSES = ["present", "absent", "leave"] as const;
-const EXPENSE_TYPES = ["rent", "salary", "utility", "maintenance"] as const;
+const EXPENSE_TYPES = [
+  "rent",
+  "salary",
+  "utility",
+  "utilities",
+  "salaries",
+  "supplies",
+  "marketing",
+  "maintenance",
+  "other",
+] as const;
 
 const UserSchema = new Schema(
   {
@@ -247,6 +257,7 @@ const SalesSummarySchema = new Schema(
 // Expenses
 const ExpenseSchema = new Schema(
   {
+    branch_id: { type: ObjectId, ref: "Branch", required: true, index: true },
     expense_type: { type: String, required: true, enum: EXPENSE_TYPES, index: true },
     amount: { type: Number, required: true, min: 0 },
     description: { type: String, default: "" },

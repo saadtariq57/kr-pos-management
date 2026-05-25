@@ -1,4 +1,0 @@
-1. Employee's details like salary & The Employee section should also show the phone numbers of employees.
-2. Fix Top loader
-2. Expenses
-3. Report

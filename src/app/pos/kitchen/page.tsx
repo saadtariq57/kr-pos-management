@@ -113,7 +113,7 @@ export default function KitchenPage() {
         description="Accept tickets, then mark them ready when the food leaves the pass."
         right={
           <Badge variant="muted" dot>
-            Live · updates every 4s
+            Live
           </Badge>
         }
       />

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
   [
-    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5",
+    "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5",
     "text-[10.5px] font-semibold uppercase tracking-[0.14em]",
     "transition-colors",
   ].join(" "),
@@ -56,17 +56,17 @@ export function Badge({
       {dot ? (
         <span
           className={cn(
-            "inline-block size-1.5 rounded-full",
+            "inline-block size-1.5 shrink-0 rounded-full",
             variant === "primary" && "bg-[hsl(var(--primary))]",
             variant === "success" && "bg-[hsl(var(--success))]",
             variant === "warning" && "bg-[hsl(38_92%_60%)]",
             variant === "danger" && "bg-[hsl(var(--destructive))]",
-            (!variant || variant === "default" || variant === "outline") &&
+            (!variant || variant === "default" || variant === "muted" || variant === "outline") &&
               "bg-[hsl(var(--muted-foreground))]",
           )}
         />
       ) : null}
-      {children}
+      <span className="pl-[0.14em]">{children}</span>
     </span>
   );
 }

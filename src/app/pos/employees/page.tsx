@@ -39,6 +39,7 @@ type EmployeeRow = {
   user_id: string;
   name: string;
   email: string;
+  phone?: string;
   role: string;
   is_active: boolean;
   last_login: string | null;
@@ -197,7 +198,7 @@ function EmployeesPageContent() {
 
   const list = useApiList<EmployeeRow>(listPath);
 
-  // Local text filter (matches name / email / designation / department).
+  // Local text filter (matches name / email / phone / designation / department).
   const filteredRows = React.useMemo(() => {
     const rows = list.data?.items ?? [];
     const q = query.trim().toLowerCase();
@@ -206,6 +207,7 @@ function EmployeesPageContent() {
       return (
         row.name.toLowerCase().includes(q) ||
         row.email.toLowerCase().includes(q) ||
+        (row.phone ?? "").toLowerCase().includes(q) ||
         (row.hr?.designation ?? "").toLowerCase().includes(q) ||
         (row.hr?.department ?? "").toLowerCase().includes(q)
       );
@@ -300,6 +302,79 @@ function EmployeesPageContent() {
   // Per-row expandable HR detail.
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
+  // HR Profile Dialog Form State
+  const [editingHrRow, setEditingHrRow] = React.useState<EmployeeRow | null>(null);
+  const [hrDesignation, setHrDesignation] = React.useState("");
+  const [hrDepartment, setHrDepartment] = React.useState("");
+  const [hrPhone, setHrPhone] = React.useState("");
+  const [hrSalary, setHrSalary] = React.useState("");
+  const [hrHireDate, setHrHireDate] = React.useState("");
+  const [hrEmploymentStatus, setHrEmploymentStatus] = React.useState("active");
+  const [hrSubmitting, setHrSubmitting] = React.useState(false);
+  const [hrDialogError, setHrDialogError] = React.useState<string | null>(null);
+
+  function openHrDialog(row: EmployeeRow) {
+    setEditingHrRow(row);
+    setHrDesignation(row.hr?.designation ?? "");
+    setHrDepartment(row.hr?.department ?? "");
+    setHrPhone(row.hr?.phone ?? row.phone ?? "");
+    setHrSalary(row.hr?.salary != null ? String(row.hr.salary) : "");
+    setHrHireDate(row.hr?.hire_date ? new Date(row.hr.hire_date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
+    setHrEmploymentStatus(row.hr?.employment_status ?? "active");
+    setHrDialogError(null);
+  }
+
+  async function submitHrProfile() {
+    if (!editingHrRow) return;
+    if (!hrDesignation.trim() || !hrDepartment.trim() || !hrPhone.trim() || !hrSalary.trim() || !hrHireDate) {
+      setHrDialogError("All fields are required.");
+      return;
+    }
+    const salaryNum = Number(hrSalary);
+    if (Number.isNaN(salaryNum) || salaryNum < 0) {
+      setHrDialogError("Salary must be a non-negative number.");
+      return;
+    }
+
+    setHrSubmitting(true);
+    setHrDialogError(null);
+    try {
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: editingHrRow.name,
+          email: editingHrRow.email,
+          phone: hrPhone.trim(),
+          designation: hrDesignation.trim(),
+          department: hrDepartment.trim(),
+          salary: salaryNum,
+          hire_date: new Date(hrHireDate).toISOString(),
+          employment_status: hrEmploymentStatus,
+          user_id: editingHrRow.user_id,
+          branch_id: editingHrRow.branch?.id || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error ?? `Request failed (${res.status})`);
+      }
+
+      toast({
+        title: editingHrRow.hr ? "HR profile updated" : "HR profile created",
+        tone: "success",
+      });
+      setEditingHrRow(null);
+      await list.reload();
+    } catch (e) {
+      setHrDialogError(e instanceof Error ? e.message : "Failed to save HR profile");
+    } finally {
+      setHrSubmitting(false);
+    }
+  }
+
   return (
     <div className="grid gap-8">
       <PageHeader
@@ -319,7 +394,7 @@ function EmployeesPageContent() {
               <Label htmlFor="emp-search">Search</Label>
               <Input
                 id="emp-search"
-                placeholder="Name, email, designation…"
+                placeholder="Name, email, phone, designation…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -439,6 +514,15 @@ function EmployeesPageContent() {
                     </Badge>
                   ),
                 },
+                {
+                  key: "phone",
+                  header: "Phone",
+                  cell: (r) => (
+                    <span className="text-[hsl(var(--muted-foreground))]">
+                      {r.phone || "—"}
+                    </span>
+                  ),
+                },
                 ...(admin
                   ? [
                       {
@@ -538,6 +622,10 @@ function EmployeesPageContent() {
             <ExpandedHrDetail
               row={filteredRows.find((r) => r.user_id === expandedId) ?? null}
               onClose={() => setExpandedId(null)}
+              onEdit={() => {
+                const r = filteredRows.find((x) => x.user_id === expandedId);
+                if (r) openHrDialog(r);
+              }}
             />
           ) : null}
         </CardContent>
@@ -603,6 +691,120 @@ function EmployeesPageContent() {
           </DialogContent>
         ) : null}
       </Dialog>
+
+      <Dialog
+        open={!!editingHrRow}
+        onOpenChange={(open) => {
+          if (!open) setEditingHrRow(null);
+        }}
+      >
+        {editingHrRow ? (
+          <DialogContent className="sm:max-w-[450px]">
+            <DialogHeader>
+              <DialogTitle>
+                {editingHrRow.hr ? `Edit "${editingHrRow.name}" HR Profile` : `Create HR Profile for "${editingHrRow.name}"`}
+              </DialogTitle>
+              <DialogDescription>
+                Provide details like designation, department, and salary for people operations.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="hr-designation">Designation</Label>
+                <Input
+                  id="hr-designation"
+                  placeholder="e.g. Senior Chef, Floor Supervisor"
+                  value={hrDesignation}
+                  onChange={(e) => setHrDesignation(e.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="hr-department">Department</Label>
+                <Input
+                  id="hr-department"
+                  placeholder="e.g. Kitchen, Service, Management"
+                  value={hrDepartment}
+                  onChange={(e) => setHrDepartment(e.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="hr-phone">Phone number</Label>
+                <Input
+                  id="hr-phone"
+                  placeholder="e.g. +92 300 1234567"
+                  value={hrPhone}
+                  onChange={(e) => setHrPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="hr-salary">Salary (PKR)</Label>
+                  <Input
+                    id="hr-salary"
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 50000"
+                    value={hrSalary}
+                    onChange={(e) => setHrSalary(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label htmlFor="hr-hiredate">Hire date</Label>
+                  <Input
+                    id="hr-hiredate"
+                    type="date"
+                    value={hrHireDate}
+                    onChange={(e) => setHrHireDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="hr-status">Employment status</Label>
+                <Select value={hrEmploymentStatus} onValueChange={setHrEmploymentStatus}>
+                  <SelectTrigger id="hr-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="resigned">Resigned</SelectItem>
+                    <SelectItem value="terminated">Terminated</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {hrDialogError ? (
+                <p className="text-[12px] text-[hsl(var(--destructive))]">
+                  {hrDialogError}
+                </p>
+              ) : null}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingHrRow(null)}
+                disabled={hrSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => void submitHrProfile()}
+                disabled={hrSubmitting}
+              >
+                {hrSubmitting ? "Saving…" : "Save Details"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        ) : null}
+      </Dialog>
     </div>
   );
 }
@@ -610,9 +812,11 @@ function EmployeesPageContent() {
 function ExpandedHrDetail({
   row,
   onClose,
+  onEdit,
 }: {
   row: EmployeeRow | null;
   onClose: () => void;
+  onEdit: () => void;
 }) {
   if (!row) return null;
 
@@ -628,9 +832,16 @@ function ExpandedHrDetail({
             </span>
           </div>
         </div>
-        <Button size="sm" variant="ghost" onClick={onClose}>
-          Close
-        </Button>
+        <div className="flex items-center gap-2">
+          {row.hr ? (
+            <Button size="sm" variant="outline" onClick={onEdit}>
+              Edit Profile
+            </Button>
+          ) : null}
+          <Button size="sm" variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+        </div>
       </div>
 
       {row.hr ? (
@@ -661,10 +872,16 @@ function ExpandedHrDetail({
           />
         </dl>
       ) : (
-        <p className="text-[12.5px] text-[hsl(var(--muted-foreground))]">
-          No HR profile linked to this account. Add one from the HR module to
-          surface salary, department and hire-date details here.
-        </p>
+        <div className="grid gap-3">
+          <p className="text-[12.5px] text-[hsl(var(--muted-foreground))]">
+            No HR profile linked to this account. Add one to surface salary, department, phone and hire-date details here.
+          </p>
+          <div>
+            <Button size="sm" onClick={onEdit}>
+              Create HR Profile
+            </Button>
+          </div>
+        </div>
       )}
 
       <div className="mt-3 grid gap-x-6 gap-y-1 border-t border-[hsl(var(--border))] pt-3 sm:grid-cols-2 lg:grid-cols-3">

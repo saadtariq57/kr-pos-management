@@ -50,7 +50,7 @@ function normRole(role: string): string {
 
 export const NAV_ACCESS: Record<NavKey, AppRole[]> = {
   pos: ["admin", "manager", "cashier", "waiter"],
-  "place-order": ["admin", "cashier", "waiter"],
+  "place-order": ["cashier"],
   orders: ["admin", "manager", "cashier", "waiter", "chef"],
   kitchen: ["admin", "manager", "cashier", "chef"],
   menu: ["admin", "manager"],
@@ -70,6 +70,7 @@ export function isAdmin(role: string): boolean {
 
 export function roleHasNavAccess(role: string, key: NavKey): boolean {
   const r = normRole(role);
+  if (r === "admin" && key === "place-order") return false; // Admin cannot place orders
   if (r === "admin") return true;
   const allowed = NAV_ACCESS[key];
   return allowed.includes(r as AppRole);
@@ -77,7 +78,7 @@ export function roleHasNavAccess(role: string, key: NavKey): boolean {
 
 export function canPlaceOrders(role: string): boolean {
   const r = normRole(role);
-  return r === "cashier" || r === "admin" || r === "waiter";
+  return r === "cashier";
 }
 
 /**
