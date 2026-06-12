@@ -8,7 +8,6 @@ import { AlertCircle, ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react
 import { AuthFormCard } from "@/components/auth/AuthFormCard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiPost } from "@/lib/api-client";
@@ -102,11 +101,7 @@ export function LoginClient() {
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between gap-3">
-          <label className="flex items-center gap-2 text-[12.5px] text-[hsl(var(--muted-foreground))]">
-            <Checkbox id="remember" />
-            Remember me
-          </label>
+        <div className="flex items-center justify-end gap-3">
           <Link
             href="#"
             className="text-[12.5px] font-medium text-[hsl(var(--primary))] hover:opacity-90"

@@ -6,6 +6,7 @@ import { isAdmin } from "@/lib/rbac";
 import { notify, notifyMany } from "@/lib/notifications";
 import { computeTaxAndFinal, resolveMenuOrderLines } from "@/lib/order-lines";
 import { checkOrderTransition, isTerminalStatus } from "@/lib/order-status";
+import { isValidPhone, PHONE_HINT } from "@/lib/validation";
 import { jsonError, jsonOk } from "@/app/api/_utils";
 import { connectDB } from "@/lib/mongodb";
 import { Customer, MenuItem, Order, OrderItem, Payment, User } from "@/models";
@@ -444,7 +445,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         cset.name = String(body.customer_name).trim();
       }
       if (body.customer_phone != null) {
-        cset.phone = String(body.customer_phone).trim();
+        const phone = String(body.customer_phone).trim();
+        if (!isValidPhone(phone)) {
+          return jsonError(PHONE_HINT, 400);
+        }
+        cset.phone = phone;
       }
       if (body.customer_email !== undefined) {
         cset.email = body.customer_email

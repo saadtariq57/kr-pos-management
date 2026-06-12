@@ -35,7 +35,6 @@ type OrderRow = {
   _id: string;
   order_number: number;
   order_type: string;
-  table_number?: number | null;
   status: string;
   final_amount: number;
   created_at?: string;
@@ -257,7 +256,6 @@ export default function OrdersPage() {
                   cell: (r) => (
                     <span className="capitalize text-[hsl(var(--muted-foreground))]">
                       {r.order_type}
-                      {r.table_number ? ` · T${r.table_number}` : ""}
                     </span>
                   ),
                 },

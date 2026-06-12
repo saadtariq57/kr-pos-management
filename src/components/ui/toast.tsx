@@ -85,13 +85,16 @@ function ToastNode({
           ? Info
           : null;
 
+  const hasDescription = !!item.description;
+
   return (
     <ToastPrimitive.Root
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
       className={cn(
-        "group relative grid grid-cols-[auto_1fr_auto] items-start gap-3",
+        "group relative grid grid-cols-[auto_1fr_auto] gap-3",
+        hasDescription ? "items-start" : "items-center",
         "rounded-[12px] border border-[hsl(var(--border-strong))] bg-[hsl(var(--popover))]",
         "p-3.5 pr-2 text-[hsl(var(--popover-foreground))]",
         "shadow-[0_24px_60px_-24px_hsl(0_0%_0%/0.85)]",
@@ -105,14 +108,20 @@ function ToastNode({
       {Icon ? (
         <Icon
           className={cn(
-            "mt-0.5 size-4 shrink-0",
+            "size-4 shrink-0",
+            hasDescription && "mt-0.5",
             item.tone === "success" && "text-[hsl(var(--success))]",
             item.tone === "danger" && "text-[hsl(var(--destructive))]",
             item.tone === "info" && "text-[hsl(var(--primary))]",
           )}
         />
       ) : (
-        <span className="mt-1.5 size-1.5 rounded-full bg-[hsl(var(--muted-foreground))]" />
+        <span
+          className={cn(
+            "size-1.5 rounded-full bg-[hsl(var(--muted-foreground))]",
+            hasDescription && "mt-1.5",
+          )}
+        />
       )}
 
       <div className="min-w-0 grid gap-0.5">

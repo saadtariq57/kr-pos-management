@@ -30,6 +30,7 @@ import type { OrderBillPdfInput } from "@/lib/bill-pdf";
 import { canPlaceOrders } from "@/lib/rbac";
 import { useApiList } from "@/lib/useApiList";
 import { cn } from "@/lib/utils";
+import { isValidPhone, PHONE_HINT } from "@/lib/validation";
 
 type MenuRow = {
   _id: string;
@@ -195,6 +196,10 @@ function PlaceOrderInner() {
     setError(null);
     if (!customerName.trim() || !customerPhone.trim()) {
       setError("Customer name and phone are required.");
+      return;
+    }
+    if (!isValidPhone(customerPhone)) {
+      setError(PHONE_HINT);
       return;
     }
     if (!waiterId) {

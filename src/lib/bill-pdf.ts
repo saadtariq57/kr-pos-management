@@ -15,7 +15,6 @@ export type OrderBillPdfInput = {
     total_price: number;
   }[];
   order_type: string;
-  table_number: number | null;
   created_at?: string | Date | null;
   cashier_name?: string | null;
   waiter_name?: string | null;
@@ -79,10 +78,6 @@ export function downloadOrderBillPdf(bill: OrderBillPdfInput) {
   y += 16;
   doc.text(`Type: ${bill.order_type}`, margin, y);
   y += 14;
-  if (bill.table_number != null) {
-    doc.text(`Table: ${bill.table_number}`, margin, y);
-    y += 14;
-  }
   doc.text(`Customer: ${bill.customer.name}`, margin, y);
   y += 14;
   doc.text(`Phone: ${bill.customer.phone}`, margin, y);
@@ -211,7 +206,6 @@ export function billFromOrderDetail(d: {
   order: {
     order_number: number;
     order_type: string;
-    table_number?: number | null;
     subtotal_amount: number;
     tax_amount: number;
     discount_amount: number;
@@ -255,7 +249,6 @@ export function billFromOrderDetail(d: {
       total_price: i.total_price,
     })),
     order_type: d.order.order_type,
-    table_number: d.order.table_number ?? null,
     created_at: d.order.created_at,
     cashier_name: d.cashier?.name ?? null,
     waiter_name: d.waiter?.name ?? null,

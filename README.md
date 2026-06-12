@@ -25,7 +25,20 @@ NEXT_PUBLIC_WEBSOCKET_URL=http://localhost:3002
 
 # SendGrid & Cloudinary Credentials (as needed)
 ...
+
+# Stripe (TEST MODE) — for card payments
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_CURRENCY=pkr
 ```
+
+### Stripe Card Payments (Test Mode)
+Card payments are powered by [Stripe](https://stripe.com) running in **test mode**:
+1. Create a free Stripe account and open the [test API keys page](https://dashboard.stripe.com/test/apikeys).
+2. Copy your **test** secret + publishable keys (they start with `sk_test_` / `pk_test_`) into `.env` as `STRIPE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, then restart the dev server.
+3. On a served order, choose **Card** as the payment method and click **Pay with card**. Use the test card `4242 4242 4242 4242`, any future expiry, any CVC, and any ZIP.
+
+No real money moves while you stay on the test keys.
 
 > **How ports work:** All npm scripts use [`dotenv-cli`](https://www.npmjs.com/package/dotenv-cli) to load `.env` before starting any server. This means `PORT` and `WEBSOCKET_PORT` are injected into the process environment *before* the server binds — so changing a port is as simple as editing `.env`. No changes to `package.json` or any code are needed.
 

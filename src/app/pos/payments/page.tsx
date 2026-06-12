@@ -21,7 +21,6 @@ type PaymentRow = {
   order: {
     order_number: number | null;
     order_type: string | null;
-    table_number: number | null;
     final_amount: number | null;
     status: string | null;
     created_at: string | null;
@@ -99,9 +98,6 @@ export default function PaymentsPage() {
                       </span>
                       <span className="text-[11.5px] capitalize text-[hsl(var(--muted-foreground))]">
                         {r.order?.order_type ?? "—"}
-                        {r.order?.table_number
-                          ? ` · Table ${r.order.table_number}`
-                          : ""}
                       </span>
                     </div>
                   ),

@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/components/auth/AuthProvider";
 import { PageHeader } from "@/components/pages/PageHeader";
 import { MenuItemPickTile } from "@/components/pos/MenuItemPickTile";
+import { StripeCardForm } from "@/components/pos/StripeCardForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,13 +45,13 @@ import {
   isAdmin,
 } from "@/lib/rbac";
 import { useApiList } from "@/lib/useApiList";
+import { isValidPhone, PHONE_HINT } from "@/lib/validation";
 
 type OrderDetail = {
   order: {
     _id: string;
     order_number: number;
     order_type: string;
-    table_number?: number | null;
     status: string;
     subtotal_amount: number;
     tax_amount: number;
@@ -190,9 +191,10 @@ export function OrderDetailClient() {
   // marking the order ready / served without manually reloading. Only updates
   // `detail`; never touches form-state (cart, discount, etc.) so anything the
   // user is editing stays intact. Stops once the order is terminal, and
-  // pauses while the tab is hidden.
+  // pauses while the tab is hidden or while the inline card form is showing.
   React.useEffect(() => {
     if (!id) return;
+    if (payMethod === "card") return;
     if (detail && isTerminal(detail.order.status)) return;
     const interval = window.setInterval(async () => {
       if (
@@ -211,7 +213,7 @@ export function OrderDetailClient() {
       }
     }, 4000);
     return () => window.clearInterval(interval);
-  }, [id, detail]);
+  }, [id, detail, payMethod]);
 
   function addToCart(menuId: string) {
     if (detail && isTerminal(detail.order.status)) return;
@@ -261,6 +263,10 @@ export function OrderDetailClient() {
     setSaveError(null);
     if (lines.length === 0) {
       setSaveError("Keep at least one line item.");
+      return;
+    }
+    if (customerPhone.trim() && !isValidPhone(customerPhone)) {
+      setSaveError(PHONE_HINT);
       return;
     }
     setSaving(true);
@@ -317,6 +323,30 @@ export function OrderDetailClient() {
       toast({ title: "Payment recorded", tone: "success" });
     } catch (e) {
       setPayError(e instanceof Error ? e.message : "Payment failed");
+    } finally {
+      setPaySaving(false);
+    }
+  }
+
+  // Called by the card form once Stripe confirms the PaymentIntent in-browser.
+  // The card is already charged via Stripe — we record the payment against the
+  // order using the PaymentIntent id as the transaction reference.
+  async function recordCardPayment(paymentIntentId: string) {
+    setPayError(null);
+    setPaySaving(true);
+    try {
+      await apiPost(`/api/orders/${id}/payment`, {
+        payment_method: "card",
+        transaction_reference: paymentIntentId,
+      });
+      await reloadDetail();
+      toast({ title: "Card payment successful", tone: "success" });
+    } catch (e) {
+      setPayError(
+        e instanceof Error
+          ? e.message
+          : "Card charged, but recording the payment failed.",
+      );
     } finally {
       setPaySaving(false);
     }
@@ -531,42 +561,64 @@ export function OrderDetailClient() {
               ) : null}
 
               {paymentStepActive && canPay ? (
-                <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="pay-method">Payment method</Label>
-                    <Select
-                      value={payMethod}
-                      onValueChange={(v) =>
-                        setPayMethod(v as "cash" | "card" | "online")
-                      }
-                    >
-                      <SelectTrigger id="pay-method">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="card">Card</SelectItem>
-                        <SelectItem value="online">Online</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="pay-ref">Txn reference (optional)</Label>
-                    <Input
-                      id="pay-ref"
-                      value={payRef}
-                      onChange={(e) => setPayRef(e.target.value)}
-                      placeholder="Receipt / ref #"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    className="w-full sm:w-auto"
-                    disabled={paySaving}
-                    onClick={() => void markPaid()}
+                <div className="grid gap-4">
+                  <div
+                    className={
+                      payMethod === "card"
+                        ? "grid gap-3 sm:max-w-xs"
+                        : "grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+                    }
                   >
-                    {paySaving ? "Saving…" : "Mark as paid"}
-                  </Button>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="pay-method">Payment method</Label>
+                      <Select
+                        value={payMethod}
+                        onValueChange={(v) =>
+                          setPayMethod(v as "cash" | "card" | "online")
+                        }
+                      >
+                        <SelectTrigger id="pay-method">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="card">Card</SelectItem>
+                          <SelectItem value="online">Online</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {payMethod !== "card" ? (
+                      <>
+                        <div className="grid gap-1.5">
+                          <Label htmlFor="pay-ref">
+                            Txn reference (optional)
+                          </Label>
+                          <Input
+                            id="pay-ref"
+                            value={payRef}
+                            onChange={(e) => setPayRef(e.target.value)}
+                            placeholder="Receipt / ref #"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          className="w-full sm:w-auto"
+                          disabled={paySaving}
+                          onClick={() => void markPaid()}
+                        >
+                          {paySaving ? "Saving…" : "Mark as paid"}
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+
+                  {payMethod === "card" ? (
+                    <StripeCardForm
+                      orderId={id}
+                      amountLabel={pkr(o.final_amount)}
+                      onPaid={(ref) => void recordCardPayment(ref)}
+                    />
+                  ) : null}
                 </div>
               ) : null}
 
@@ -977,6 +1029,7 @@ export function OrderDetailClient() {
           </Card>
         </div>
       </section>
+
     </div>
   );
 }

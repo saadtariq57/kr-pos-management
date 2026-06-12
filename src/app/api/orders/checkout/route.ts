@@ -7,6 +7,7 @@ import { computeTaxAndFinal, resolveMenuOrderLines } from "@/lib/order-lines";
 import { canPlaceOrders } from "@/lib/rbac";
 import { connectDB } from "@/lib/mongodb";
 import { Customer, Order, OrderItem, User } from "@/models";
+import { isValidPhone, PHONE_HINT } from "@/lib/validation";
 import { jsonError, jsonOk } from "@/app/api/_utils";
 
 const ORDER_TYPES = ["dine-in", "takeaway"] as const;
@@ -39,6 +40,10 @@ export async function POST(req: NextRequest) {
 
   if (!customer_name || !customer_phone) {
     return jsonError("customer_name and customer_phone are required");
+  }
+
+  if (!isValidPhone(customer_phone)) {
+    return jsonError(PHONE_HINT);
   }
 
   if (!ORDER_TYPES.includes(order_type as (typeof ORDER_TYPES)[number])) {

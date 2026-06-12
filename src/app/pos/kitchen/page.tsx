@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, ChefHat, CookingPot, Timer, Utensils } from "lucide-react";
+import {
+  CheckCircle2,
+  ChefHat,
+  CookingPot,
+  Loader2,
+  Timer,
+  Utensils,
+} from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { PageHeader } from "@/components/pages/PageHeader";
@@ -19,7 +26,6 @@ type OrderRow = {
   order_number: number;
   status: string;
   order_type: string;
-  table_number?: number | null;
   created_at?: string;
   accepted_by_chef_id?: string | null;
   chef_name?: string | null;
@@ -86,12 +92,14 @@ export default function KitchenPage() {
   }, [reload]);
 
   const canOperate = user && canOperateKitchen(user.role);
+  const [pendingId, setPendingId] = React.useState<string | null>(null);
 
   const active = (orders.data?.items ?? []).filter((o) =>
     ["pending", "preparing", "ready"].includes(o.status),
   );
 
   async function setStatus(id: string, status: string, n: number) {
+    setPendingId(id);
     try {
       await patchOrder(id, status);
       await orders.reload();
@@ -102,6 +110,8 @@ export default function KitchenPage() {
         description: e instanceof Error ? e.message : undefined,
         tone: "danger",
       });
+    } finally {
+      setPendingId(null);
     }
   }
 
@@ -171,12 +181,6 @@ export default function KitchenPage() {
                     <div className="flex items-center gap-2">
                       <Timer className="size-3.5" />
                       <span className="capitalize">{o.order_type}</span>
-                      {o.table_number ? (
-                        <>
-                          <span>·</span>
-                          <span>Table {o.table_number}</span>
-                        </>
-                      ) : null}
                     </div>
                     {o.waiter_name ? (
                       <div className="flex items-center gap-2">
@@ -236,11 +240,14 @@ export default function KitchenPage() {
                       <Button
                         size="sm"
                         className="flex-1"
-                        disabled={!canOperate}
+                        disabled={!canOperate || pendingId === o._id}
                         onClick={() =>
                           void setStatus(o._id, "preparing", o.order_number)
                         }
                       >
+                        {pendingId === o._id ? (
+                          <Loader2 className="animate-spin" />
+                        ) : null}
                         Accept ticket
                       </Button>
                     ) : null}
@@ -249,12 +256,18 @@ export default function KitchenPage() {
                       <Button
                         size="sm"
                         className="flex-1"
-                        disabled={!canOperate || (claimed && !mine)}
+                        disabled={
+                          !canOperate || (claimed && !mine) || pendingId === o._id
+                        }
                         onClick={() =>
                           void setStatus(o._id, "ready", o.order_number)
                         }
                       >
-                        <CheckCircle2 />
+                        {pendingId === o._id ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <CheckCircle2 />
+                        )}
                         Mark ready
                       </Button>
                     ) : null}

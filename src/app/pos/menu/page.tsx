@@ -10,6 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useConfirm } from "@/components/ui/confirm";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +52,19 @@ type MenuItemRow = {
   image_url?: string | null;
 };
 
+async function uploadImage(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const up = await fetch("/api/upload", {
+    method: "POST",
+    body: fd,
+    credentials: "include",
+  });
+  const upJson = await up.json();
+  if (!up.ok) throw new Error(upJson?.error ?? "Image upload failed");
+  return upJson.url as string;
+}
+
 export default function MenuPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -61,10 +83,13 @@ export default function MenuPage() {
   const [itemCategory, setItemCategory] = React.useState("");
   const [itemImageFile, setItemImageFile] = React.useState<File | null>(null);
   const [creatingItem, setCreatingItem] = React.useState(false);
-  const [editingItemId, setEditingItemId] = React.useState<string | null>(null);
   const [itemAvailability, setItemAvailability] = React.useState("available");
   const [itemFormError, setItemFormError] = React.useState<string | null>(null);
   const itemImageInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const [editingCategory, setEditingCategory] =
+    React.useState<CategoryRow | null>(null);
+  const [editingItem, setEditingItem] = React.useState<MenuItemRow | null>(null);
 
   async function createCategory() {
     if (!catName.trim()) return;
@@ -90,7 +115,6 @@ export default function MenuPage() {
   }
 
   function resetItemForm() {
-    setEditingItemId(null);
     setItemName("");
     setItemPrice("");
     setItemDesc("");
@@ -101,62 +125,22 @@ export default function MenuPage() {
     if (itemImageInputRef.current) itemImageInputRef.current.value = "";
   }
 
-  function startEditItem(row: MenuItemRow) {
-    setItemFormError(null);
-    setEditingItemId(row._id);
-    setItemName(row.item_name);
-    setItemPrice(String(row.price));
-    setItemDesc(row.description ?? "");
-    setItemCategory(row.category_id);
-    setItemImageFile(null);
-    setItemAvailability(row.availability_status ?? "available");
-    if (itemImageInputRef.current) itemImageInputRef.current.value = "";
-  }
-
-  async function uploadItemImage(): Promise<string | null> {
-    if (!itemImageFile) return null;
-    const fd = new FormData();
-    fd.append("file", itemImageFile);
-    const up = await fetch("/api/upload", {
-      method: "POST",
-      body: fd,
-      credentials: "include",
-    });
-    const upJson = await up.json();
-    if (!up.ok) throw new Error(upJson?.error ?? "Image upload failed");
-    return upJson.url as string;
-  }
-
-  async function saveMenuItem() {
+  async function createMenuItem() {
     if (!itemName.trim() || !itemCategory || !itemPrice) return;
     setItemFormError(null);
     setCreatingItem(true);
     try {
-      const newImageUrl = await uploadItemImage();
-      if (editingItemId) {
-        const patch: Record<string, unknown> = {
-          category_id: itemCategory,
-          item_name: itemName.trim(),
-          description: itemDesc.trim(),
-          price: Number(itemPrice),
-          cost_price: Number(itemPrice),
-          availability_status: itemAvailability,
-        };
-        if (newImageUrl) patch.image_url = newImageUrl;
-        await apiPatch(`/api/menu-items/${editingItemId}`, patch);
-        toast({ title: "Item updated", tone: "success" });
-      } else {
-        await apiPost("/api/menu-items", {
-          category_id: itemCategory,
-          item_name: itemName.trim(),
-          description: itemDesc.trim(),
-          price: Number(itemPrice),
-          cost_price: Number(itemPrice),
-          availability_status: itemAvailability,
-          image_url: newImageUrl,
-        });
-        toast({ title: "Item added", tone: "success" });
-      }
+      const newImageUrl = itemImageFile ? await uploadImage(itemImageFile) : null;
+      await apiPost("/api/menu-items", {
+        category_id: itemCategory,
+        item_name: itemName.trim(),
+        description: itemDesc.trim(),
+        price: Number(itemPrice),
+        cost_price: Number(itemPrice),
+        availability_status: itemAvailability,
+        image_url: newImageUrl,
+      });
+      toast({ title: "Item added", tone: "success" });
       resetItemForm();
       await items.reload();
     } catch (e) {
@@ -179,7 +163,6 @@ export default function MenuPage() {
     setItemFormError(null);
     try {
       await apiDelete(`/api/menu-items/${id}`);
-      if (editingItemId === id) resetItemForm();
       await items.reload();
       toast({ title: "Item deleted" });
     } catch (e) {
@@ -282,7 +265,7 @@ export default function MenuPage() {
                   {
                     key: "active",
                     header: "Active",
-                    align: "right",
+                    align: isAdmin ? "left" : "right",
                     cell: (r) =>
                       (r.is_active ?? true) ? (
                         <Badge variant="success" size="sm">Yes</Badge>
@@ -290,6 +273,24 @@ export default function MenuPage() {
                         <Badge variant="muted" size="sm">No</Badge>
                       ),
                   },
+                  ...(isAdmin
+                    ? [
+                        {
+                          key: "actions",
+                          header: "",
+                          align: "right" as const,
+                          cell: (r: CategoryRow) => (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingCategory(r)}
+                            >
+                              Edit
+                            </Button>
+                          ),
+                        },
+                      ]
+                    : []),
                 ]}
                 rows={categoryItems}
                 empty={
@@ -313,33 +314,16 @@ export default function MenuPage() {
                       Menu items
                     </div>
                     <p className="text-[12px] text-[hsl(var(--muted-foreground))]">
-                      Add, edit, or remove items.
+                      Add new items here, or edit existing ones from the list.
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {editingItemId ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={resetItemForm}
-                        disabled={creatingItem}
-                      >
-                        Cancel edit
-                      </Button>
-                    ) : null}
-                    <Button
-                      size="sm"
-                      onClick={() => void saveMenuItem()}
-                      disabled={creatingItem}
-                    >
-                      {creatingItem
-                        ? "Saving…"
-                        : editingItemId
-                          ? "Save changes"
-                          : "Add item"}
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => void createMenuItem()}
+                    disabled={creatingItem}
+                  >
+                    {creatingItem ? "Saving…" : "Add item"}
+                  </Button>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -509,7 +493,7 @@ export default function MenuPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => startEditItem(r)}
+                          onClick={() => setEditingItem(r)}
                         >
                           Edit
                         </Button>
@@ -538,6 +522,311 @@ export default function MenuPage() {
           </CardContent>
         </Card>
       </div>
+
+      <EditCategoryDialog
+        category={editingCategory}
+        onOpenChange={(open) => {
+          if (!open) setEditingCategory(null);
+        }}
+        onSaved={async () => {
+          setEditingCategory(null);
+          await categories.reload();
+        }}
+      />
+
+      <EditMenuItemDialog
+        item={editingItem}
+        categories={categoryItems}
+        onOpenChange={(open) => {
+          if (!open) setEditingItem(null);
+        }}
+        onSaved={async () => {
+          setEditingItem(null);
+          await items.reload();
+        }}
+      />
     </div>
+  );
+}
+
+function EditCategoryDialog({
+  category,
+  onOpenChange,
+  onSaved,
+}: {
+  category: CategoryRow | null;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const { toast } = useToast();
+  const [name, setName] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [active, setActive] = React.useState("true");
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (category) {
+      setName(category.category_name);
+      setDescription(category.description ?? "");
+      setActive((category.is_active ?? true) ? "true" : "false");
+      setError(null);
+    }
+  }, [category]);
+
+  async function save() {
+    if (!category) return;
+    setError(null);
+    if (!name.trim()) {
+      setError("Category name is required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiPatch(`/api/categories/${category._id}`, {
+        category_name: name.trim(),
+        description: description.trim(),
+        is_active: active === "true",
+      });
+      toast({ title: "Category updated", tone: "success" });
+      await onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update category.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!category} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit category</DialogTitle>
+          <DialogDescription>
+            Update the category name, description, or visibility.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-3">
+          <div className="grid gap-1.5">
+            <Label htmlFor="edit-cat-name">Category name</Label>
+            <Input
+              id="edit-cat-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Burgers, Drinks…"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="edit-cat-desc">Description</Label>
+            <Input
+              id="edit-cat-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="edit-cat-active">Active</Label>
+            <Select value={active} onValueChange={setActive}>
+              <SelectTrigger id="edit-cat-active">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">Yes</SelectItem>
+                <SelectItem value="false">No</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {error ? (
+            <div className="flex items-start gap-2 rounded-[10px] border border-[hsl(var(--destructive)/0.3)] bg-[hsl(var(--destructive)/0.08)] px-3 py-2.5 text-[12.5px] text-[hsl(var(--destructive))]">
+              <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          ) : null}
+        </div>
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline" size="sm" disabled={saving}>
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button size="sm" onClick={() => void save()} disabled={saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditMenuItemDialog({
+  item,
+  categories,
+  onOpenChange,
+  onSaved,
+}: {
+  item: MenuItemRow | null;
+  categories: CategoryRow[];
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const { toast } = useToast();
+  const [name, setName] = React.useState("");
+  const [price, setPrice] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [categoryId, setCategoryId] = React.useState("");
+  const [availability, setAvailability] = React.useState("available");
+  const [imageFile, setImageFile] = React.useState<File | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const imageInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  React.useEffect(() => {
+    if (item) {
+      setName(item.item_name);
+      setPrice(String(item.price));
+      setDescription(item.description ?? "");
+      setCategoryId(item.category_id);
+      setAvailability(item.availability_status ?? "available");
+      setImageFile(null);
+      setError(null);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  }, [item]);
+
+  async function save() {
+    if (!item) return;
+    setError(null);
+    if (!name.trim() || !categoryId || !price) {
+      setError("Item name, price, and category are required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const newImageUrl = imageFile ? await uploadImage(imageFile) : null;
+      const patch: Record<string, unknown> = {
+        category_id: categoryId,
+        item_name: name.trim(),
+        description: description.trim(),
+        price: Number(price),
+        cost_price: Number(price),
+        availability_status: availability,
+      };
+      if (newImageUrl) patch.image_url = newImageUrl;
+      await apiPatch(`/api/menu-items/${item._id}`, patch);
+      toast({ title: "Item updated", tone: "success" });
+      await onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update menu item.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!item} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[min(100vw-2rem,560px)]">
+        <DialogHeader>
+          <DialogTitle>Edit menu item</DialogTitle>
+          <DialogDescription>
+            Update pricing, category, availability, or the product image.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="edit-item-name">Item name</Label>
+            <Input
+              id="edit-item-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Zinger Burger"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="edit-item-price">Price</Label>
+            <Input
+              id="edit-item-price"
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="500"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="edit-item-category">Category</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger id="edit-item-category">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c._id} value={c._id}>
+                    {c.category_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="edit-item-availability">Availability</Label>
+            <Select value={availability} onValueChange={setAvailability}>
+              <SelectTrigger id="edit-item-availability">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="unavailable">Unavailable</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="edit-item-desc">Description</Label>
+            <Input
+              id="edit-item-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional"
+            />
+          </div>
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="edit-item-image">
+              Product image{" "}
+              <span className="text-[hsl(var(--muted-foreground))]">
+                (leave empty to keep current)
+              </span>
+            </Label>
+            <Input
+              ref={imageInputRef}
+              id="edit-item-image"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+            />
+          </div>
+        </div>
+
+        {error ? (
+          <div className="mt-3 flex items-start gap-2 rounded-[10px] border border-[hsl(var(--destructive)/0.3)] bg-[hsl(var(--destructive)/0.08)] px-3 py-2.5 text-[12.5px] text-[hsl(var(--destructive))]">
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : null}
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline" size="sm" disabled={saving}>
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button size="sm" onClick={() => void save()} disabled={saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

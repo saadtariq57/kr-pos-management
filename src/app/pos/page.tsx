@@ -96,7 +96,7 @@ const SHORTCUT_METADATA = [
   {
     key: "customers" as NavKey,
     title: "Customer profiles",
-    hint: "Loyalty points, contact logs and reservations",
+    hint: "Contact details and customer directory",
     href: "/pos/customers",
     icon: Users,
     color: "border-teal-500/20 bg-teal-500/10 text-teal-500",
@@ -175,11 +175,10 @@ export default async function PosHome() {
 
     const todayOrdersCount = todayOrders.length;
 
-    // 3: Open Tables: active orders with a table_number
-    const openTablesCount = await Order.countDocuments({
+    // 3: Active orders currently moving through the pipeline
+    const activeOrdersCount = await Order.countDocuments({
       ...branchFilter,
       status: { $in: ["pending", "preparing", "ready", "served"] },
-      table_number: { $ne: null }
     });
 
     // 4: Kitchen Load: active pending/preparing orders
@@ -210,8 +209,8 @@ export default async function PosHome() {
         tone: "default" as const,
       },
       {
-        label: "Open Tables",
-        value: String(openTablesCount),
+        label: "Active Orders",
+        value: String(activeOrdersCount),
         tone: "default" as const,
       },
       {

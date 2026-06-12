@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { getSessionUserApproved } from "@/lib/auth-server";
 import { connectDB } from "@/lib/mongodb";
 import { Customer } from "@/models";
+import { isValidPhone, PHONE_HINT } from "@/lib/validation";
 import { jsonError, jsonOk, parseListQuery } from "@/app/api/_utils";
 
 export async function GET(req: NextRequest) {
@@ -36,10 +37,15 @@ export async function POST(req: NextRequest) {
     return jsonError("name and phone are required");
   }
 
+  const phone = String(body.phone).trim();
+  if (!isValidPhone(phone)) {
+    return jsonError(PHONE_HINT);
+  }
+
   try {
     const customer = await Customer.create({
-      name: body.name,
-      phone: body.phone,
+      name: String(body.name).trim(),
+      phone,
       email: body.email ?? null,
     });
     return jsonOk({ ok: true, customer });
