@@ -93,7 +93,7 @@ app.post('/api/notify', (req, res) => {
 const PORT = process.env.WEBSOCKET_PORT || 3002;
 server.listen(PORT, () => {
   console.log(`\n==================================================`);
-  console.log(`🚀 WebSocket Notification Server is running on:`);
+  console.log(`WebSocket Notification Server is running on:`);
   console.log(`   http://localhost:${PORT}`);
   console.log(`==================================================\n`);
 });

@@ -24,7 +24,11 @@ function getStripePromise(): Promise<StripeJs | null> | null {
   if (stripePromise) return stripePromise;
   const pk = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   if (!pk) return null;
-  stripePromise = loadStripe(pk);
+  // `developerTools.assistant.enabled: false` hides Stripe's test-mode
+  // "testing assistant" popup that otherwise floats in the bottom-right.
+  stripePromise = loadStripe(pk, {
+    developerTools: { assistant: { enabled: false } },
+  });
   return stripePromise;
 }
 
