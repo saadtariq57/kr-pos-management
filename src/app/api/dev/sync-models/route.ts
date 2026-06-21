@@ -17,7 +17,6 @@ import {
   Expense,
   Reservation,
   Employee,
-  Attendance,
   Payroll,
   AnalyticsLog,
 } from "@/models";
@@ -48,7 +47,6 @@ export async function GET() {
       Expense,
       Reservation,
       Employee,
-      Attendance,
       Payroll,
       AnalyticsLog,
     ];

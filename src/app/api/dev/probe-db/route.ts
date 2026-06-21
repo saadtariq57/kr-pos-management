@@ -18,7 +18,6 @@ import {
   Expense,
   Reservation,
   Employee,
-  Attendance,
   Payroll,
   AnalyticsLog,
 } from "@/models";
@@ -39,7 +38,6 @@ const models = [
   Expense,
   Reservation,
   Employee,
-  Attendance,
   Payroll,
   AnalyticsLog,
 ];

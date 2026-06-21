@@ -17,7 +17,6 @@ const ORDER_STATUSES = [
 const PAYMENT_METHODS = ["cash", "card", "online"] as const;
 const RESERVATION_STATUSES = ["pending", "confirmed", "cancelled"] as const;
 const EMPLOYMENT_STATUSES = ["active", "resigned", "terminated"] as const;
-const ATTENDANCE_STATUSES = ["present", "absent", "leave"] as const;
 const EXPENSE_TYPES = [
   "rent",
   "salary",
@@ -316,17 +315,6 @@ const EmployeeSchema = new Schema(
   { collection: "employees", versionKey: false },
 );
 
-const AttendanceSchema = new Schema(
-  {
-    employee_id: { type: ObjectId, ref: "Employee", required: true, index: true },
-    check_in_time: { type: Date, default: null },
-    check_out_time: { type: Date, default: null },
-    attendance_date: { type: Date, required: true, index: true },
-    status: { type: String, required: true, enum: ATTENDANCE_STATUSES, index: true },
-  },
-  { collection: "attendance", versionKey: false },
-);
-
 const PayrollSchema = new Schema(
   {
     employee_id: { type: ObjectId, ref: "Employee", required: true, index: true },
@@ -420,7 +408,6 @@ export const SalesSummary = registerModel("SalesSummary", SalesSummarySchema);
 export const Expense = registerModel("Expense", ExpenseSchema);
 export const Reservation = registerModel("Reservation", ReservationSchema);
 export const Employee = registerModel("Employee", EmployeeSchema);
-export const Attendance = registerModel("Attendance", AttendanceSchema);
 export const Payroll = registerModel("Payroll", PayrollSchema);
 export const AnalyticsLog = registerModel("AnalyticsLog", AnalyticsLogSchema);
 export const Notification = registerModel("Notification", NotificationSchema);

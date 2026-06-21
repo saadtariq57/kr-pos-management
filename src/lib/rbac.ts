@@ -305,7 +305,7 @@ export const ROLE_DEFINITIONS: RoleDefinition[] = [
   {
     role_name: "hr",
     description:
-      "People operations. Manages the employee directory, payroll, and attendance — no POS access.",
+      "People operations. Manages the employee directory and payroll — no POS access.",
     badge: "muted",
     permissions: ["employees.view", "employees.manage"],
   },

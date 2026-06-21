@@ -15,7 +15,6 @@ export {
   Expense,
   Reservation,
   Employee,
-  Attendance,
   Payroll,
   AnalyticsLog,
   Notification,

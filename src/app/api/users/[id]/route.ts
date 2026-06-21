@@ -10,7 +10,6 @@ import {
 import { connectDB } from "@/lib/mongodb";
 import {
   AnalyticsLog,
-  Attendance,
   Employee,
   Order,
   Payroll,
@@ -22,9 +21,9 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * Remove a user account (admin only). Hard-delete is FK-guarded: if the user
- * has historical Orders / Payroll / Attendance records we 409 and force the
- * caller to soft-delete (PATCH `{ action: "deactivate" }`) instead. The HR
- * Employee profile linked via `user_id` is deleted alongside.
+ * has historical Orders / Payroll records we 409 and force the caller to
+ * soft-delete (PATCH `{ action: "deactivate" }`) instead. The HR Employee
+ * profile linked via `user_id` is deleted alongside.
  *
  * Body: { password: string }
  */
@@ -70,17 +69,14 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
     .select("_id")
     .lean<{ _id: unknown } | null>();
 
-  const [orderCount, payrollCount, attendanceCount] = await Promise.all([
+  const [orderCount, payrollCount] = await Promise.all([
     Order.countDocuments({ staff_id: id }),
     linkedEmployee
       ? Payroll.countDocuments({ employee_id: linkedEmployee._id })
       : Promise.resolve(0),
-    linkedEmployee
-      ? Attendance.countDocuments({ employee_id: linkedEmployee._id })
-      : Promise.resolve(0),
   ]);
 
-  if (orderCount + payrollCount + attendanceCount > 0) {
+  if (orderCount + payrollCount > 0) {
     return jsonError(
       "Cannot hard-delete: this user has historical orders or HR records. Deactivate them instead.",
       409,
